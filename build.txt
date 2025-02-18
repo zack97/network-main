@@ -1,0 +1,89 @@
+
+### build.txt
+
+---
+
+## 1. Pré-requis
+Avant de commencer, assurez-vous d'avoir les éléments suivants installés sur votre système :
+- **Java JDK 8 ou supérieur**
+- **Un éditeur de texte** (si vous devez modifier des fichiers).
+- **Un terminal CLI** (Command Prompt, PowerShell, Bash, etc.).
+
+---
+
+## 2. Structure du projet
+Le projet doit être organisé comme suit :
+```
+UDP_Socket_Project/
+│
+├── src/                   # Contient le code source
+│   ├── Packet.java        # Classe représentant un paquet UDP
+│   ├── Transmitter.java   # Programme émetteur
+│   └── Receiver.java      # Programme récepteur
+│
+├── input.txt              # Fichier à transmettre
+├── build.txt              # Ce fichier expliquant la compilation et l'exécution
+```
+
+---
+
+## 3. Compilation
+Accédez au répertoire **src** dans un terminal, puis compilez les fichiers Java à l'aide de la commande suivante :
+```bash
+javac Packet.java Emetteur.java Recepteur.java
+```
+Cela génère les fichiers `.class` dans le même répertoire.
+
+---
+
+## 4. Exécution
+### Pour lancer le récepteur :
+Dans un terminal, exécutez la commande suivante :
+```bash
+java Recepteur <port> <chemin_du_fichier_sortie>
+```
+Exemple :
+```bash
+java Recepteur 5000 output.txt
+```
+
+### Pour lancer l'émetteur :
+Dans un autre terminal, exécutez la commande suivante :
+```bash
+java Emetteur <adresse_ip> <port> <chemin_du_fichier_entree>
+```
+Exemple :
+```bash
+java Emetteur 127.0.0.1 5000 input.txt
+```
+
+---
+
+## 5. Notes importantes
+1. **Fichiers d'entrée/sortie :**
+   - Le fichier `input.txt` doit être placé dans le répertoire racine du projet (au même niveau que le dossier `src/`).
+   - Le fichier `output.txt` sera généré dans le même répertoire où le récepteur est exécuté.
+
+2. **Dépannage :**
+   - Si vous voyez une erreur indiquant qu'un fichier n'est pas trouvé, vérifiez que vous avez fourni le bon chemin pour `input.txt` ou `output.txt`.
+
+3. **Port et IP :**
+   - Le port utilisé doit être le même pour le récepteur et l'émetteur.
+   - Si vous exécutez sur une seule machine, utilisez `127.0.0.1` comme adresse IP pour l'émetteur.
+
+---
+
+## 6. Exemple d'exécution complet
+1. Démarrez le récepteur :
+   ```bash
+   java Recepteur 5000 output.txt
+   ```
+
+2. Démarrez l'émetteur dans un autre terminal :
+   ```bash
+   java Emetteur 127.0.0.1 5000 input.txt
+   ```
+
+3. Vérifiez le fichier `output.txt` pour vous assurer que les données ont bien été transmises.
+
+---
