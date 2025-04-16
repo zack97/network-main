@@ -24,6 +24,7 @@ public class Emetteur {
             fis.read(dataFichier);
             fis.close();
 
+            // On utilise le constructeur simplifié
             Packet p = new Packet(1, dataFichier);
 
             ByteArrayOutputStream baos = new ByteArrayOutputStream();

@@ -27,7 +27,7 @@ public class Recepteur {
             Packet p = (Packet) ois.readObject();
 
             FileOutputStream fos = new FileOutputStream(nomFichier);
-            fos.write(p.data);
+            fos.write(p.donnees);  
             fos.close();
 
             System.out.println("✅ Fichier reçu et sauvegardé sous : " + nomFichier);
