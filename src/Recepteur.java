@@ -1,89 +1,39 @@
 import java.io.FileOutputStream;
+import java.io.ObjectInputStream;
+import java.io.ByteArrayInputStream;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
-import java.net.InetAddress;
-import java.util.SortedMap;
-import java.util.TreeMap;
 
-/**
- * Classe Receiver (Récepteur)
- * Cette classe reçoit des paquets UDP envoyés par l'émetteur et reconstruit le
- * fichier à partir de ces paquets.
- */
 public class Recepteur {
     public static void main(String[] args) {
+        if (args.length != 2) {
+            System.out.println("Utilisation : java Recepteur <port> <fichier_sortie>");
+            return;
+        }
+
+        int port = Integer.parseInt(args[0]);
+        String nomFichier = args[1];
+
         try {
-            // Vérification des arguments
-            if (args.length != 2) {
-                System.err.println("Utilisation : java Receiver <port> <fichier_sortie>");
-                return;
-            }
-
-            // Lecture des arguments
-            int port = Integer.parseInt(args[0]); // Port sur lequel écouter
-            String outputFile = args[1]; // Nom du fichier dans lequel les données seront sauvegardées
-
-            // Création du socket UDP pour écouter sur le port spécifié
             DatagramSocket socket = new DatagramSocket(port);
+            System.out.println("📥 Récepteur en écoute sur le port " + port + "...");
 
-            // Création d'un flux de fichier pour sauvegarder les données reçues
-            FileOutputStream fos = new FileOutputStream(outputFile);
+            byte[] buffer = new byte[65507];
+            DatagramPacket paquet = new DatagramPacket(buffer, buffer.length);
+            socket.receive(paquet);
 
-            boolean isRunning = true; // Indique si le récepteur doit continuer à fonctionner
-            while (isRunning) {
-                // Tampon pour stocker les données reçues
-                byte[] buffer = new byte[1024];
-                DatagramPacket packet = new DatagramPacket(buffer, buffer.length);
+            ByteArrayInputStream bais = new ByteArrayInputStream(paquet.getData());
+            ObjectInputStream ois = new ObjectInputStream(bais);
+            Packet p = (Packet) ois.readObject();
 
-                // Réception d'un paquet
-                socket.receive(packet);
+            FileOutputStream fos = new FileOutputStream(nomFichier);
+            fos.write(p.data);
+            fos.close();
 
-                // Désérialisation des données pour reconstruire le paquet
-                Packet receivedPacket = Packet.deserialize(packet.getData());
-
-                // Vérification si le paquet est un paquet RST (réinitialisation)
-                if (receivedPacket.isRstFlag()) {
-                    System.err.println("Paquet RST reçu. Connexion réinitialisée.");
-                    isRunning = false; // Arrêter immédiatement la réception
-                    break; // Quitter la boucle de réception
-                }
-
-                // Vérification si le paquet est un paquet FIN (fin de transmission)
-                if (receivedPacket.isFinFlag()) {
-                    System.out.println("Paquet FIN reçu. Fermeture de la connexion.");
-                    isRunning = false; // Arrête la boucle de réception
-                } else {
-                    // Écriture des données du paquet dans le fichier de sortie
-                    fos.write(receivedPacket.getData());
-                    System.out.println("Paquet reçu avec numéro de séquence : " + receivedPacket.getSequenceNumber());
-                }
-            }
-
-            // Fermeture des ressources
-            fos.close(); // Ferme le flux du fichier
-            socket.close(); // Ferme le socket
+            System.out.println("✅ Fichier reçu et sauvegardé sous : " + nomFichier);
+            socket.close();
         } catch (Exception e) {
-            e.printStackTrace(); // Affiche les erreurs éventuelles
+            e.printStackTrace();
         }
     }
-
-    /*
-     * Points à Améliorer :
-     * 
-     * Protocole incomplet :
-     * 
-     * 
-     * Pas de gestion du 3-way handshake
-     * Pas d'envoi d'ACK pour les paquets reçus
-     * Pas de vérification des numéros de séquence
-     * Pas de gestion de l'ordre des paquets
-     */
-    // Gestion des ACKs
-private void sendAck(int sequenceNumber, DatagramSocket socket, InetAddress sender, int port)
-
-// Buffer pour les paquets hors ordre
-private SortedMap<Integer, byte[]> packetBuffer = new TreeMap<>();
-
-    // Vérification de l'ordre
-private boolean isNextExpectedPacket(int sequenceNumber)
 }
