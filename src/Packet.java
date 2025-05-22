@@ -1,115 +1,114 @@
-import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
-import java.io.ObjectInputStream;
-import java.io.ObjectOutputStream;
-import java.io.Serializable;
 import java.nio.ByteBuffer;
-import java.nio.ByteOrder;
 
-/**
- * Classe représentant un paquet utilisé dans la communication réseau.
- * Ce paquet contient des données ainsi que des informations liées au protocole
- * (numéro de séquence, drapeaux SYN/ACK/FIN/RST).
- */
-public class Packet implements Serializable {
-    private static final long serialVersionUID = 1L; // Identifiant pour la sérialisation
-    private int sequenceNumber; // Numéro de séquence du paquet
-    private byte[] data; // Données transportées par le paquet
-    private boolean synFlag; // Drapeau SYN : utilisé pour l'initialisation de la connexion
-    private boolean ackFlag; // Drapeau ACK : utilisé pour confirmer la réception
-    private boolean finFlag; // Drapeau FIN : utilisé pour terminer la connexion
-    private boolean rstFlag; // Drapeau RST : utilisé pour réinitialiser la connexion
+public class Packet {
+    private boolean synFlag;
+    private boolean ackFlag;
+    private boolean finFlag;
+    private boolean rstFlag;
+    private int sequenceNumber;
+    private byte[] payload;
 
     /**
-     * Constructeur pour créer un nouveau paquet.
-     * 
-     * @param sequenceNumber Numéro de séquence du paquet
-     * @param data           Données à inclure dans le paquet
-     * @param syn            Indique si le drapeau SYN est activé
-     * @param ack            Indique si le drapeau ACK est activé
-     * @param fin            Indique si le drapeau FIN est activé
-     * @param rst            Indique si le drapeau RST est activé
+     * Constructeur du paquet avec les flags, numéro de séquence et données.
      */
-    public Packet(int sequenceNumber, byte[] data, boolean syn, boolean ack, boolean fin, boolean rst) {
+    public Packet(boolean synFlag, boolean ackFlag, boolean finFlag, boolean rstFlag, int sequenceNumber, byte[] payload) {
+        this.synFlag = synFlag;
+        this.ackFlag = ackFlag;
+        this.finFlag = finFlag;
+        this.rstFlag = rstFlag;
         this.sequenceNumber = sequenceNumber;
-        this.data = data;
-        this.synFlag = syn;
-        this.ackFlag = ack;
-        this.finFlag = fin;
-        this.rstFlag = rst;
+        this.payload = payload;
+    }
+
+    // Getters pour accéder aux propriétés du paquet
+    public boolean isSynFlag() { return synFlag; }
+    public boolean isAckFlag() { return ackFlag; }
+    public boolean isFinFlag() { return finFlag; }
+    public boolean isRstFlag() { return rstFlag; }
+    public int getSequenceNumber() { return sequenceNumber; }
+    public byte[] getPayload() { return payload; }
+
+    /**
+     * Sérialise le paquet en tableau d'octets.
+     * Format :
+     * - 1 octet pour les flags (SYN, ACK, FIN, RST codés dans les 4 bits de poids forts)
+     * - 4 octets pour le numéro de séquence (int)
+     * - 4 octets pour la longueur du payload (int)
+     * - payload (données)
+     */
+    public byte[] toBytes() {
+        byte flags = 0;
+        if (synFlag) flags |= 0b1000;  // bit 3 pour SYN
+        if (ackFlag) flags |= 0b0100;  // bit 2 pour ACK
+        if (finFlag) flags |= 0b0010;  // bit 1 pour FIN
+        if (rstFlag) flags |= 0b0001;  // bit 0 pour RST
+
+        int payloadLength = (payload != null) ? payload.length : 0;
+
+        // Allocation d'un ByteBuffer de la taille totale nécessaire
+        ByteBuffer buffer = ByteBuffer.allocate(1 + 4 + 4 + payloadLength);
+        buffer.put(flags);                 // Ajout des flags
+        buffer.putInt(sequenceNumber);    // Ajout numéro de séquence
+        buffer.putInt(payloadLength);     // Ajout longueur du payload
+
+        // Ajout des données si payload non nul
+        if (payloadLength > 0) {
+            buffer.put(payload);
+        }
+
+        return buffer.array(); // Retourne le tableau d'octets complet
     }
 
     /**
-     * Sérialise un objet Packet en un tableau d'octets.
-     * Cela est utile pour envoyer le paquet sur le réseau.
-     * 
-     * @param packet Le paquet à sérialiser
-     * @return Un tableau d'octets représentant le paquet
-     * @throws Exception En cas de problème durant la sérialisation
+     * Désérialise un tableau d'octets en un objet Packet.
+     * Vérifie que la taille minimale est respectée et que la longueur du payload est valide.
+     * @param bytes tableau d'octets à convertir
+     * @return Packet correspondant
+     * @throws IllegalArgumentException si le format est incorrect
      */
-    public static byte[] serialize(Packet packet) throws Exception {
-        ByteArrayOutputStream baos = new ByteArrayOutputStream(); // Flux pour stocker les données en mémoire
-        ObjectOutputStream oos = new ObjectOutputStream(baos); // Flux pour écrire l'objet en bytes
-        oos.writeObject(packet); // Écriture de l'objet Packet
-        return baos.toByteArray(); // Récupération du tableau d'octets
+    public static Packet fromBytes(byte[] bytes) throws IllegalArgumentException {
+        if (bytes.length < 9) {
+            throw new IllegalArgumentException("Taille de paquet trop petite");
+        }
+
+        ByteBuffer buffer = ByteBuffer.wrap(bytes);
+        byte flags = buffer.get();
+
+        // Extraction des flags selon bits codés
+        boolean synFlag = (flags & 0b1000) != 0;
+        boolean ackFlag = (flags & 0b0100) != 0;
+        boolean finFlag = (flags & 0b0010) != 0;
+        boolean rstFlag = (flags & 0b0001) != 0;
+
+        int sequenceNumber = buffer.getInt();
+        int payloadLength = buffer.getInt();
+
+        // Vérification que la longueur du payload est cohérente avec la taille du tableau
+        if (payloadLength < 0 || payloadLength > bytes.length - 9) {
+            throw new IllegalArgumentException("Payload length invalide");
+        }
+
+        byte[] payload = new byte[payloadLength];
+        if (payloadLength > 0) {
+            buffer.get(payload, 0, payloadLength);
+        }
+
+        return new Packet(synFlag, ackFlag, finFlag, rstFlag, sequenceNumber, payload);
     }
 
     /**
-     * Désérialise un tableau d'octets pour recréer un objet Packet.
-     * Cela est utilisé pour recevoir un paquet envoyé sur le réseau.
-     * 
-     * @param bytes Le tableau d'octets à désérialiser
-     * @return L'objet Packet recréé
-     * @throws Exception En cas de problème durant la désérialisation
+     * Représentation textuelle du paquet, utile pour debug/log
+     * Indique l’état de chaque flag, numéro de séquence, et taille des données.
      */
-    public static Packet deserialize(byte[] bytes) throws Exception {
-        ByteArrayInputStream bais = new ByteArrayInputStream(bytes); // Flux pour lire les données à partir d'un tableau
-                                                                     // d'octets
-        ObjectInputStream ois = new ObjectInputStream(bais); // Flux pour recréer l'objet
-        return (Packet) ois.readObject(); // Conversion des bytes en objet Packet
-    }
-
-    // Accesseurs pour obtenir les informations du paquet
-
-    public int getSequenceNumber() {
-        return sequenceNumber;
-    }
-
-    public byte[] getData() {
-        return data;
-    }
-
-    public boolean isSynFlag() {
-        return synFlag;
-    }
-
-    public boolean isAckFlag() {
-        return ackFlag;
-    }
-
-    public boolean isFinFlag() {
-        return finFlag;
-    }
-
-    public boolean isRstFlag() {
-        return rstFlag;
-    }
-    /*
-     * Points à Améliorer :
-     * 
-     * Format du protocole :
-     * 
-     * 
-     * Manque la taille totale des données (16 bits)
-     * Pas de gestion du byte padding
-     * Pas de gestion explicite du format big-endian
-     */
-
-    // Devrait utiliser une sérialisation manuelle pour contrôler le format
-    private byte[] manualSerialize() {
-        ByteBuffer buffer = ByteBuffer.allocate(calculateSize());
-        buffer.order(ByteOrder.BIG_ENDIAN);
-        // Ajouter les champs...
-        return buffer.array();
+    @Override
+    public String toString() {
+        return "Paquet reçu :\n" +
+            "  (Un flag à 1 signifie qu'il est activé)\n" +
+            "  - SYN flag : " + (synFlag ? "1 (activé)" : "0 (désactivé)") + "\n" +
+            "  - ACK flag : " + (ackFlag ? "1 (activé)" : "0 (désactivé)") + "\n" +
+            "  - FIN flag : " + (finFlag ? "1 (activé)" : "0 (désactivé)") + "\n" +
+            "  - RST flag : " + (rstFlag ? "1 (activé)" : "0 (désactivé)") + "\n" +
+            "  - Numéro de séquence : " + sequenceNumber + "\n" +
+            "  - Taille des données (payload) : " + (payload != null ? payload.length : 0) + " octets";
     }
 }
